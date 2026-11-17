@@ -68,6 +68,15 @@ versionado**; `.gitignore` bloqueia arquivos `*.gguf`.
 O ETL e as regras funcionam sem o modelo; somente as transações sem
 correspondência nas regras são enviadas ao LLM para categorização.
 
+`LLM_BASE_URL` define o endereço base do servidor (padrão `http://llm:8080`)
+e `LLM_MODEL` define o nome do modelo (padrão `categorizador`). É possível usar
+outro servidor compatível com a API da OpenAI que aceite `response_format`
+com `json_schema`; até agora, somente llama.cpp foi testado.
+
+O cabeçalho `Authorization`, com a chave da API, é enviado ao endereço definido
+em `LLM_BASE_URL`. Ao usar um servidor na nuvem, as descrições das transações
+também são enviadas a terceiros; avalie esse risco antes de configurá-lo.
+
 **TODO:** medir memória e velocidade de execução em CPU.
 
 ## Amostras e validação

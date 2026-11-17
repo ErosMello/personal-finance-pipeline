@@ -20,11 +20,12 @@ fi
 partial=$(mktemp "$model_directory/.modelo.XXXXXXXX")
 trap 'rm -f -- "$partial"' EXIT
 
-curl -L --fail --output "$partial" "$MODEL_URL"
+curl -L --fail --proto '=https' --tlsv1.2 --output "$partial" "$MODEL_URL"
 if ! printf '%s  %s\n' "$MODEL_SHA256" "$partial" | sha256sum --check --status; then
   printf 'Erro: SHA-256 do modelo não confere; download descartado.\n' >&2
   exit 1
 fi
 
+chmod 644 "$partial"
 mv -fT -- "$partial" "$model_path"
 printf 'Modelo baixado e verificado em %s.\n' "$model_path"

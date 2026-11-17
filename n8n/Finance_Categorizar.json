@@ -68,7 +68,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const pend = $input.all().map(i => i.json).filter(r => r.id);\nif (!pend.length) return [];\nconst cats = $('Categorias').all().map(i => i.json.nome);\nconst schema = { type: 'object', properties: { resultados: { type: 'array', items: { type: 'object',\n  properties: { id: { type: 'integer' }, categoria: { type: 'string', enum: cats } }, required: ['id', 'categoria'] } } },\n  required: ['resultados'] };\nconst sys = \"Você classifica compras de cartão de crédito brasileiro em UMA categoria da lista. Use 'Outros' só se nada servir. Responda apenas JSON.\\nCategorias: \" + cats.join(', ');\nconst out = [];\nfor (let i = 0; i < pend.length; i += 6) {\n  const b = pend.slice(i, i + 6);\n  out.push({ json: { body: { model: 'categorizador', temperature: 0, max_tokens: 400,\n    messages: [{ role: 'system', content: sys }, { role: 'user', content: b.map(r => `${r.id}|${r.descricao}|${r.valor}`).join('\\n') }],\n    response_format: { type: 'json_schema', json_schema: { name: 'r', strict: true, schema } } } } });\n}\nreturn out;"
+          "jsCode": "const pend = $input.all().map(i => i.json).filter(r => r.id);\nif (!pend.length) return [];\nconst cats = $('Categorias').all().map(i => i.json.nome);\nconst schema = { type: 'object', properties: { resultados: { type: 'array', items: { type: 'object',\n  properties: { id: { type: 'integer' }, categoria: { type: 'string', enum: cats } }, required: ['id', 'categoria'] } } },\n  required: ['resultados'] };\nconst sys = \"Você classifica compras de cartão de crédito brasileiro em UMA categoria da lista. Use 'Outros' só se nada servir. Responda apenas JSON.\\nCategorias: \" + cats.join(', ');\nconst out = [];\nfor (let i = 0; i < pend.length; i += 6) {\n  const b = pend.slice(i, i + 6);\n  out.push({ json: { body: { model: $env.LLM_MODEL || 'categorizador', temperature: 0, max_tokens: 400,\n    messages: [{ role: 'system', content: sys }, { role: 'user', content: b.map(r => `${r.id}|${r.descricao}|${r.valor}`).join('\\n') }],\n    response_format: { type: 'json_schema', json_schema: { name: 'r', strict: true, schema } } } } });\n}\nreturn out;"
         },
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
@@ -82,7 +82,7 @@
       {
         "parameters": {
           "method": "POST",
-          "url": "http://llm:8080/v1/chat/completions",
+          "url": "={{ ($env.LLM_BASE_URL || 'http://llm:8080').replace(/\\/+$/, '') + '/v1/chat/completions' }}",
           "sendBody": true,
           "specifyBody": "json",
           "jsonBody": "={{ JSON.stringify($json.body) }}",
