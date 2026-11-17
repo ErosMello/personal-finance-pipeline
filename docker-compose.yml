@@ -45,7 +45,7 @@ services:
     image: ghcr.io/ggml-org/llama.cpp@sha256:8c74db29f1a2bef3f0a331b52c4d6214601dfceed4bee0b94cc48b3b23ff257d
     restart: unless-stopped
     command: >
-      -m /models/Qwen3-4B-Instruct-2507-Q4_K_M.gguf
+      -m /models/${MODEL_FILE:-Qwen3-4B-Instruct-2507-Q4_K_M.gguf}
       -ngl 0 -t 6 -c 8192 -np 1 --reasoning off
       --host 0.0.0.0 --port 8080
       --api-key-file /run/secrets/llama_key

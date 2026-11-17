@@ -7,8 +7,8 @@ um arquivo `.env` real, backups ou dados financeiros reais.
 ## Requisitos
 
 - Docker com Docker Compose v2 e Git.
-- Python 3.
-- O arquivo `Qwen3-4B-Instruct-2507-Q4_K_M.gguf`, disponível localmente.
+- Python 3, curl e sha256sum.
+- Acesso à internet para baixar o modelo.
 - As portas locais `15432` (PostgreSQL) e `15679` (n8n) livres. Se não estiverem
   livres, escolha outras portas e altere `POSTGRES_PORT` e `N8N_PORT` no arquivo
   de ambiente de teste.
@@ -23,16 +23,14 @@ do clone:
 ```bash
 set -euo pipefail
 mkdir -m 700 "$HOME/pfp-test"
-mkdir -m 700 "$HOME/pfp-test/models"
-modelo_fonte="/caminho/absoluto/para/Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
-modelo_teste="$HOME/pfp-test/models/Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
-if ! ln "$modelo_fonte" "$modelo_teste"; then
-  cp "$modelo_fonte" "$modelo_teste"
-fi
-test "$(find "$HOME/pfp-test/models" -mindepth 1 -maxdepth 1 -type f | wc -l)" -eq 1
 git clone --branch main <URL_HTTPS_COPIADA_DO_REPOSITORIO> "$HOME/pfp-test/repo"
 cd "$HOME/pfp-test/repo"
+mkdir -m 700 "$HOME/pfp-test/models"
+MODEL_DIRECTORY="$HOME/pfp-test/models" ./scripts/baixar_modelo.sh
 ```
+
+O script baixa o GGUF e verifica seu SHA-256. O diretório criado para o teste
+contém somente esse arquivo e será montado como somente leitura.
 
 Crie `$HOME/pfp-test/.env` e `$HOME/pfp-test/llama_key` com valores
 aleatórios novos. O diretório e os arquivos ficam fora do clone; não mostre seus
@@ -72,10 +70,9 @@ os.chmod(root / "llama_key", 0o600)
 PY
 ```
 
-Substitua `/caminho/absoluto/para/Qwen3-4B-Instruct-2507-Q4_K_M.gguf` pelo
-caminho local do arquivo GGUF. O Compose monta somente
-`$HOME/pfp-test/models` em modo de leitura; nenhum diretório de dados pessoais
-deve ser usado. Confira a configuração antes de iniciar qualquer serviço:
+O Compose monta somente `$HOME/pfp-test/models` em modo de leitura; nenhum
+diretório de dados pessoais deve ser usado. Confira a configuração antes de
+iniciar qualquer serviço:
 
 ```bash
 docker compose -p pfp-test --env-file ../.env config --quiet

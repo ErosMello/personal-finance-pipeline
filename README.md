@@ -51,6 +51,25 @@ ao ETL; `finance_bi` tem leitura das views de relatório.
 As cinco views são `fin.dim_categoria`, `fin.dim_conta`, `fin.dim_data`,
 `fin.fato_transacoes` e `fin.fato_faturas`.
 
+## Modelo LLM
+
+O modelo utilizado é o Qwen3-4B-Instruct-2507, quantizado em **Q4_K_M**.
+O arquivo `Qwen3-4B-Instruct-2507-Q4_K_M.gguf` tem tamanho esperado de
+**2.497.281.120 bytes** e SHA-256:
+
+`3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597`
+
+Baixe-o com [`scripts/baixar_modelo.sh`](./scripts/baixar_modelo.sh); o
+script verifica o SHA-256. A [página do modelo no Hugging Face](https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF)
+contém as informações de licença; o [arquivo do modelo](https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_M.gguf)
+é baixado separadamente. Ele **não está no repositório e nunca deve ser
+versionado**; `.gitignore` bloqueia arquivos `*.gguf`.
+
+O ETL e as regras funcionam sem o modelo; somente as transações sem
+correspondência nas regras são enviadas ao LLM para categorização.
+
+**TODO:** medir memória e velocidade de execução em CPU.
+
 ## Amostras e validação
 
 O diretório [`samples/`](./samples/) contém três PDFs fictícios, com datas de
@@ -104,7 +123,7 @@ trabalho e incluem a inicialização do contêiner temporário.
 
 ## Dashboard
 
-**TODO:** adicionar capturas de um dashboard construído exclusivamente com os
+Serão adicionadas capturas de um dashboard construído exclusivamente com os
 dados sintéticos deste repositório.
 
 ## Limitações e próximos passos
