@@ -24,7 +24,7 @@ VALUE = re.compile(r"([−\-])?\s*R\$\s*([\d\.,]+)")
 def extract(path):
     extractor = shutil.which("pdftotext")
     if extractor:
-        result = subprocess.run([extractor, "-layout", str(path), "-"],
+        result = subprocess.run([extractor, "-enc", "UTF-8", "-layout", str(path), "-"],
                                 check=True, capture_output=True)
         return result.stdout.decode("utf-8")
     try:

@@ -39,14 +39,17 @@ flowchart LR
 ## Stack
 
 - Docker Compose.
-- n8n `2.4.4` para os fluxos de trabalho.
+- n8n `2.4.4` para os fluxos de trabalho (versão testada; veja
+  [Limitações](#limitações-e-próximos-passos)).
 - PostgreSQL `16` para o modelo relacional e as views.
 - llama.cpp com um modelo GGUF local, não incluído no repositório.
 - Python e biblioteca padrão para gerar e validar as amostras sintéticas.
 
-As roles seguem privilégio mínimo: `finance_owner` (NOLOGIN) é proprietária do
-schema e dos objetos; `finance_app` recebe somente leitura e gravação necessárias
-ao ETL; `finance_bi` tem leitura das views de relatório.
+As roles separam as permissões por função: `finance_owner` (NOLOGIN) é
+proprietária do schema e dos objetos; `finance_app` lê `usuarios`, `categorias` e
+`regras_categoria`, lê e grava `bancos`, `contas`, `faturas` e `transacoes` e só
+tem `USAGE` nas sequências (nunca exclui, trunca nem altera objetos);
+`finance_bi` tem leitura somente das cinco views de relatório.
 
 As cinco views são `fin.dim_categoria`, `fin.dim_conta`, `fin.dim_data`,
 `fin.fato_transacoes` e `fin.fato_faturas`.
@@ -162,8 +165,22 @@ de uso, não uma funcionalidade entregue.
 - O analisador atende a um único formato de fatura.
 - Os gatilhos de IMAP e webhook estão desativados nos fluxos de trabalho.
 - A precisão da categorização por LLM ainda não foi medida.
-- A chave do LLM é disponibilizada ao n8n por uma variável de ambiente; use
-  somente uma chave de teste neste ambiente.
+- O n8n está fixado na versão `2.4.4`, a testada, para manter a execução
+  reproduzível. Essa versão tem uma falha conhecida de escape de expressões
+  (CVE-2026-25049, corrigida na `2.5.2`), explorável por quem consegue criar ou
+  editar fluxos. Por isso, o n8n escuta somente em `127.0.0.1`, os fluxos
+  importados ficam inativos e o ambiente é para testes locais com dados
+  sintéticos. Importe apenas fluxos em que você confia e **não exponha a porta do
+  n8n**. Atualizar a versão exige repetir o teste de ponta a ponta.
+- `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` permite que qualquer fluxo ou nó de código
+  da instância leia **todas** as variáveis de ambiente do contêiner n8n, incluindo
+  `N8N_ENCRYPTION_KEY` e `LLM_API_KEY`. Use somente chaves de teste e fluxos
+  confiáveis. Uma alternativa, não implementada, é guardar a chave do LLM em uma
+  credencial do n8n e reativar o bloqueio.
+- A categorização por LLM pode terminar sem erro e sem categorias do LLM se o
+  modelo ainda não terminou de carregar. Aguarde o servidor responder (veja
+  [`docs/RUNNING.md`](./docs/RUNNING.md)) e confira que não restam transações
+  sem categoria.
 - Próximos passos: medir a qualidade da categorização com um conjunto sintético
   rotulado e avaliar novos formatos de fatura antes de ampliar o analisador.
 - Ideias em aberto (não implementadas): um modelo do Power BI (`.pbit`, sem

@@ -6,8 +6,13 @@ um arquivo `.env` real, backups ou dados financeiros reais.
 
 ## Requisitos
 
+- Linux ou WSL2 (Windows). Os comandos usam ferramentas GNU, como `sha256sum`, e
+  não foram testados no macOS. No Windows, execute tudo dentro do WSL2; os
+  arquivos `.sh` precisam ter finais de linha LF, o que `.gitattributes` garante.
 - Docker com Docker Compose v2 e Git.
 - Python 3, curl e sha256sum.
+- Cerca de 8 GB de disco livre (imagens, volumes e o modelo de 2,5 GB) e vários
+  GB de RAM livres para o modelo.
 - Acesso à internet para baixar o modelo.
 - As portas locais `15432` (PostgreSQL) e `15679` (n8n) livres. Se não estiverem
   livres, escolha outras portas e altere `POSTGRES_PORT` e `N8N_PORT` no arquivo
@@ -231,10 +236,25 @@ docker compose -p pfp-test --env-file ../.env exec -T n8n \
   n8n import:workflow --input=/tmp/Finance_Categorizar.json
 ```
 
-Pare apenas o serviço n8n do projeto de teste. Execute cada fluxo de trabalho em um
-contêiner temporário, sem dependências, para evitar concorrência com o processo
-n8n que usa o mesmo banco SQLite. Execute primeiro `Finance_ETL_Core`, depois
-`Finance_Categorizar` e, por fim, o ETL novamente para conferir a idempotência:
+Antes de executar os fluxos, aguarde o modelo terminar de carregar. Se ele ainda
+não responder, `Finance_Categorizar` conclui sem erro, mas sem categorias do LLM.
+Repita a consulta abaixo até que responda (o resultado esperado inclui
+`"status":"ok"`); ela precisa do serviço n8n em execução:
+
+```bash
+until docker compose -p pfp-test --env-file ../.env exec -T n8n \
+  wget -qO- http://llm:8080/health; do sleep 5; done
+```
+
+Se o comando não estiver disponível na imagem, aguarde a mensagem
+`server is listening` nos logs com
+`docker compose -p pfp-test --env-file ../.env logs llm`.
+
+Depois, pare apenas o serviço n8n do projeto de teste. Execute cada fluxo de
+trabalho em um contêiner temporário, sem dependências, para evitar concorrência
+com o processo n8n que usa o mesmo banco SQLite. Execute primeiro
+`Finance_ETL_Core`, depois `Finance_Categorizar` e, por fim, o ETL novamente para
+conferir a idempotência:
 
 ```bash
 docker compose -p pfp-test --env-file ../.env stop n8n
@@ -258,7 +278,11 @@ foi armazenado como negativo e que o pagamento anterior foi ignorado. Repita o
 ETL e confirme que não foram criadas linhas duplicadas. Registre apenas
 contagens e tempos, sem descrições, nomes de estabelecimentos ou valores.
 
-Consulte as contagens do ETL e os casos de borda como `finance_admin`:
+Consulte as contagens do ETL e os casos de borda como `finance_admin`. Com as
+amostras sintéticas, o primeiro `SELECT` deve retornar `3|11|8|3|0` (faturas,
+transações, por regra, por LLM e sem categoria). Se a coluna de LLM for `0` e a
+de sem categoria for `3`, o modelo não estava pronto: aguarde-o e execute
+`Finance_Categorizar` de novo.
 
 ```bash
 docker compose -p pfp-test --env-file ../.env exec -T postgres \
