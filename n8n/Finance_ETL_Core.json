@@ -1,0 +1,220 @@
+[
+  {
+    "description": "Extrai e valida transações de faturas e as carrega no PostgreSQL.",
+    "id": "xWdSQhzZIT996VBR1A57l",
+    "name": "Finance_ETL_Core",
+    "nodes": [
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "n8n-nodes-base.emailReadImap",
+        "typeVersion": 2.1,
+        "position": [
+          -688,
+          -288
+        ],
+        "id": "332e4e0a-b9ed-4637-b8ab-06541ef4234a",
+        "name": "Email Trigger (IMAP)",
+        "disabled": true
+      },
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "replace-me",
+          "options": {
+            "binaryPropertyName": "file"
+          }
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          -720,
+          -496
+        ],
+        "id": "28d3b26b-d82d-43f3-859c-eab857c13892",
+        "name": "WF‑Upload‑Manual",
+        "disabled": true
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "WITH p AS (SELECT $1::jsonb AS j),\nb AS (\n  INSERT INTO fin.bancos (nome) SELECT j->>'banco' FROM p\n  ON CONFLICT (nome) DO UPDATE SET nome = EXCLUDED.nome RETURNING id\n),\nc AS (\n  INSERT INTO fin.contas (usuario_id, banco_id, apelido)\n  SELECT u.id, b.id, 'Cartão ' || initcap((SELECT j->>'banco' FROM p))\n  FROM b JOIN fin.usuarios u ON u.nome = (SELECT j->>'usuario' FROM p)\n  ON CONFLICT (usuario_id, banco_id, apelido) DO UPDATE SET apelido = EXCLUDED.apelido\n  RETURNING id\n),\nf AS (\n  INSERT INTO fin.faturas (conta_id, vencimento, valor_total)\n  SELECT c.id, (p.j->>'vencimento')::date, (p.j->>'valor_total')::numeric FROM c, p\n  ON CONFLICT (conta_id, vencimento) DO UPDATE SET valor_total = EXCLUDED.valor_total\n  RETURNING id, conta_id\n)\nINSERT INTO fin.transacoes (conta_id, fatura_id, data, descricao, valor, linha)\nSELECT f.conta_id, f.id, r.data, r.descricao, r.valor, r.linha\nFROM f, p, jsonb_to_recordset(p.j->'transacoes') AS r(data date, descricao text, valor numeric, linha int)\nON CONFLICT (conta_id, data, descricao, valor, linha) DO NOTHING\nRETURNING id;",
+          "options": {
+            "queryReplacement": "={{ $json.payload }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          480,
+          -96
+        ],
+        "id": "ea5105d7-792e-458b-86c8-bd0f02202e94",
+        "name": "Execute a SQL query",
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "operation": "pdf",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1.1,
+        "position": [
+          -128,
+          -96
+        ],
+        "id": "08f48dac-862f-4c85-b8ca-c70364e9be38",
+        "name": "Extract from File"
+      },
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [
+          -736,
+          -96
+        ],
+        "id": "3c5d6ca4-d44f-466b-b4ca-e44d2412905e",
+        "name": "Manual Trigger"
+      },
+      {
+        "parameters": {
+          "fileSelector": "/data/pdfs/*.pdf",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1.1,
+        "position": [
+          -528,
+          -96
+        ],
+        "id": "456e59dc-05c1-4ab1-88ab-a18226ff98fb",
+        "name": "Read/Write Files from Disk"
+      },
+      {
+        "parameters": {
+          "jsCode": "const BANK_KEYWORD = 'EXAMPLEBANK';\n// Este parser foi criado para UM único layout de fatura; para dar suporte a outro layout, altere BANK_KEYWORD e as regras de extração.\nconst MESES = { JAN:1, FEV:2, MAR:3, ABR:4, MAI:5, JUN:6, JUL:7, AGO:8, SET:9, OUT:10, NOV:11, DEZ:12 };\nconst brToFloat = v => parseFloat(v.replace(/\\./g, '').replace(',', '.'));\nconst out = [];\n\nfor (const item of $input.all()) {\n  const rawText = item.json.text || '';\n  const lines = rawText.split('\\n').map(l => l.trim()).filter(l => l.length > 0);\n\n  const banco_detectado = rawText.toLowerCase().includes(BANK_KEYWORD.toLowerCase()) ? BANK_KEYWORD.toLowerCase() : 'desconhecido';\n  const vencMatch = rawText.match(/Data de vencimento:\\s*(\\d{2})\\s([A-ZÇ]{3})\\s(\\d{4})/);\n  const totalMatch = rawText.match(/Total a pagar R\\$\\s*([\\d\\.,]+)/);\n  const valorTotal = totalMatch ? brToFloat(totalMatch[1]) : null;\n\n  const outrosMatch = rawText.match(/Outros lançamentos\\s*([−\\-])?\\s*R\\$\\s*([\\d\\.,]+)/);\n  let vencimentoISO = null, anoV = null, mesV = null;\n  if (vencMatch) {\n    anoV = parseInt(vencMatch[3]);\n    mesV = MESES[vencMatch[2]];\n    vencimentoISO = `${anoV}-${String(mesV).padStart(2, '0')}-${vencMatch[1]}`;\n  }\n\n  const transacoes = [];\n  const pagamentosIgnorados = [];\n  let inTransactions = false, currentDate = null, lastDescription = null;\n\n  for (const line of lines) {\n    if (line.startsWith('TRANSAÇÕES')) { inTransactions = true; continue; }\n    if (!inTransactions) continue;\n    if (line.startsWith('Pagamentos')) break;\n\n    const dateMatch = line.match(/^(\\d{2})\\s([A-ZÇ]{3})$/);\n    if (dateMatch) { currentDate = { dia: parseInt(dateMatch[1]), mesStr: dateMatch[2] }; continue; }\n    if (line.startsWith('Conversão:') || line.startsWith('USD')) continue;\n\n    // O PDF usa o sinal Unicode de menos (U+2212) antes de R$.\n    const valueMatch = line.match(/([−\\-])?\\s*R\\$\\s*([\\d\\.,]+)/);\n    if (valueMatch && currentDate) {\n      const negativo = !!valueMatch[1];\n      const valor = brToFloat(valueMatch[2]) * (negativo ? -1 : 1);\n      const descricao = line.replace(/([−\\-])?\\s*R\\$\\s*([\\d\\.,]+)/, '').trim();\n      const finalDescricao = descricao || lastDescription || 'Transação';\n\n      // O pagamento da fatura anterior não representa uma despesa.\n      if (negativo && /^pagamento/i.test(finalDescricao)) { pagamentosIgnorados.push(valor); continue; }\n\n      const mes = MESES[currentDate.mesStr];\n      const ano = mes > mesV ? anoV - 1 : anoV;\n      const dataISO = `${ano}-${String(mes).padStart(2, '0')}-${String(currentDate.dia).padStart(2, '0')}`;\n      transacoes.push({ date_iso: dataISO, description: finalDescricao, amount: valor });\n      continue;\n    }\n    if (!line.includes('R$') && !line.startsWith('IOF')) lastDescription = line;\n  }\n\n  // Tarifas e juros podem aparecer somente no resumo da fatura.\n  const somaAntes = transacoes.reduce((a, t) => a + t.amount, 0);\n  const vOutros = outrosMatch ? brToFloat(outrosMatch[2]) * (outrosMatch[1] ? -1 : 1) : 0;\n  // Inclua o encargo somente se ele explicar exatamente a diferença.\n  if (outrosMatch && vencimentoISO && valorTotal !== null && Math.abs(valorTotal - somaAntes - vOutros) <= 0.01) {\n    const v = vOutros;\n    transacoes.push({ date_iso: vencimentoISO, description: 'Outros lançamentos (juros/encargos)', amount: v });\n  }\n\n  const somaCompras = Number(transacoes.reduce((a, t) => a + t.amount, 0).toFixed(2));\n  const diferenca = valorTotal !== null ? Number((valorTotal - somaCompras).toFixed(2)) : null;\n\n  out.push({ json: {\n    banco_detectado,\n    vencimento: vencimentoISO,\n    valor_total: valorTotal,\n    soma_compras: somaCompras,\n    diferenca,\n    pagamentos_ignorados: pagamentosIgnorados,\n    total_transacoes_encontradas: transacoes.length,\n    transacoes\n  }});\n}\nreturn out;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          80,
+          -96
+        ],
+        "id": "8fdb1d1b-884a-4c89-b4d7-2e0e71bd0766",
+        "name": "Extract and Validate Invoice Transactions"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Não grave dados quando o total da fatura não confere.\nconst invalidos = $input.all().filter(i => {\n  const j = i.json;\n  return !j.vencimento || j.valor_total === null || Math.abs(j.diferenca) > 0.01 || j.banco_detectado === 'desconhecido';\n});\nif (invalidos.length) {\n  throw new Error('Validação falhou: ' + invalidos.map(i =>\n    `venc=${i.json.vencimento} total=${i.json.valor_total} soma=${i.json.soma_compras} dif=${i.json.diferenca}`).join(' | '));\n}\n\nreturn $input.all().map(i => {\n  const j = i.json;\n  const contagem = {};\n  const transacoes = j.transacoes.map(t => {\n    const k = `${t.date_iso}|${t.description}|${t.amount}`;\n    contagem[k] = (contagem[k] || 0) + 1;   // Numera compras idênticas feitas no mesmo dia.\n    return { data: t.date_iso, descricao: t.description, valor: t.amount, linha: contagem[k] };\n  });\n  return { json: { payload: JSON.stringify({\n    usuario: 'sample_user',\n    banco: j.banco_detectado,\n    vencimento: j.vencimento,\n    valor_total: j.valor_total,\n    transacoes\n  })}};\n});"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          288,
+          -96
+        ],
+        "id": "ed48893b-d864-4290-a42a-ea170c947810",
+        "name": "Format Transactions for PostgreSQL"
+      },
+      {
+        "parameters": {
+          "jsCode": "return $input.all().map(it => {\n  const b = it.binary.data || {};\n  return { json: { fileHash: `${b.fileName || 'unknown.pdf'}_${b.fileSize || 0}`, source: 'manual', fileName: b.fileName, fileSize: b.fileSize }, binary: it.binary };\n});"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -320,
+          -96
+        ],
+        "id": "1a9f4333-edf7-49e9-9a2e-6cbed198cabc",
+        "name": "Generate File Identifier and Preserve PDF"
+      }
+    ],
+    "connections": {
+      "WF‑Upload‑Manual": {
+        "main": [
+          []
+        ]
+      },
+      "Email Trigger (IMAP)": {
+        "main": [
+          []
+        ]
+      },
+      "Extract from File": {
+        "main": [
+          [
+            {
+              "node": "Extract and Validate Invoice Transactions",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Manual Trigger": {
+        "main": [
+          [
+            {
+              "node": "Read/Write Files from Disk",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read/Write Files from Disk": {
+        "main": [
+          [
+            {
+              "node": "Generate File Identifier and Preserve PDF",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract and Validate Invoice Transactions": {
+        "main": [
+          [
+            {
+              "node": "Format Transactions for PostgreSQL",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Format Transactions for PostgreSQL": {
+        "main": [
+          [
+            {
+              "node": "Execute a SQL query",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Generate File Identifier and Preserve PDF": {
+        "main": [
+          [
+            {
+              "node": "Extract from File",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "availableInMCP": false
+    },
+    "active": false
+  }
+]

@@ -1,0 +1,146 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding << /Type /Encoding /BaseEncoding /WinAnsiEncoding /Differences [150 /minus] >> /ToUnicode 6 0 R >>
+endobj
+5 0 obj
+<< /Length 492 >>
+stream
+BT
+/F1 12 Tf
+40 800 Td
+16 TL
+(EXAMPLEBANK) Tj
+T*
+(Data de vencimento: 15 JAN 2026) Tj
+T*
+(Total a pagar R$ 265,00) Tj
+T*
+(TRANSA«’ES) Tj
+T*
+(03 JAN) Tj
+T*
+(SUPERMARKET EXEMPLO R$ 100,00) Tj
+T*
+(SUPERMARKET EXEMPLO R$ 100,00) Tj
+T*
+(05 JAN) Tj
+T*
+(GAS STATION EXEMPLO R$ 50,00) Tj
+T*
+(07 JAN) Tj
+T*
+(LOJA XYZ 123 EXEMPLO R$ 25,00) Tj
+T*
+(08 JAN) Tj
+T*
+(SUPERMARKET EXEMPLO ñ R$ 10,00) Tj
+T*
+(14 JAN) Tj
+T*
+(Pagamento anterior ñ R$ 90,00) Tj
+T*
+(Outros lanÁamentos) Tj
+T*
+(Pagamentos) Tj
+T*
+ET
+endstream
+endobj
+6 0 obj
+<< /Length 967 >>
+stream
+/CIDInit /ProcSet findresource begin
+12 dict begin
+begincmap
+/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def
+/CMapName /SyntheticUnicode def
+/CMapType 2 def
+1 begincodespacerange
+<00> <FF>
+endcodespacerange
+54 beginbfchar
+<20> <0020>
+<24> <0024>
+<2C> <002C>
+<30> <0030>
+<31> <0031>
+<32> <0032>
+<33> <0033>
+<34> <0034>
+<35> <0035>
+<36> <0036>
+<37> <0037>
+<38> <0038>
+<39> <0039>
+<3A> <003A>
+<41> <0041>
+<42> <0042>
+<44> <0044>
+<45> <0045>
+<47> <0047>
+<49> <0049>
+<4A> <004A>
+<4B> <004B>
+<4C> <004C>
+<4D> <004D>
+<4E> <004E>
+<4F> <004F>
+<50> <0050>
+<52> <0052>
+<53> <0053>
+<54> <0054>
+<55> <0055>
+<58> <0058>
+<59> <0059>
+<5A> <005A>
+<61> <0061>
+<63> <0063>
+<64> <0064>
+<65> <0065>
+<67> <0067>
+<69> <0069>
+<6C> <006C>
+<6D> <006D>
+<6E> <006E>
+<6F> <006F>
+<70> <0070>
+<72> <0072>
+<73> <0073>
+<74> <0074>
+<75> <0075>
+<76> <0076>
+<96> <2212>
+<C7> <00C7>
+<D5> <00D5>
+<E7> <00E7>
+endbfchar
+endcmap
+CMapName currentdict /CMap defineresource pop
+end
+end
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000247 00000 n 
+0000000423 00000 n 
+0000000965 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+1982
+%%EOF

@@ -1,0 +1,231 @@
+[
+  {
+    "description": "Aplica regras de categorização e classifica com o LLM local o que restar.",
+    "id": "catFinWf0000001",
+    "name": "Finance_Categorizar",
+    "nodes": [
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [
+          -800,
+          0
+        ],
+        "id": "trigger",
+        "name": "Manual Trigger"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE fin.transacoes t SET categoria_id = r.categoria_id, categoria_fonte = 'regra', categorizada_em = now()\nFROM (SELECT DISTINCT ON (t2.id) t2.id, r2.categoria_id FROM fin.transacoes t2 JOIN fin.regras_categoria r2 ON t2.descricao ILIKE '%' || r2.padrao || '%' WHERE t2.categoria_id IS NULL ORDER BY t2.id, (t2.descricao ILIKE 'IOF de%' AND r2.padrao = 'IOF de') DESC, length(r2.padrao) DESC) r\nWHERE t.id = r.id;",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -600,
+          0
+        ],
+        "id": "aplicar-regras",
+        "name": "Aplicar regras",
+        "alwaysOutputData": true,
+        "executeOnce": true
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT nome FROM fin.categorias ORDER BY id;",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -400,
+          0
+        ],
+        "id": "categorias",
+        "name": "Categorias",
+        "alwaysOutputData": true,
+        "executeOnce": true
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT id, descricao, valor FROM fin.transacoes WHERE categoria_id IS NULL ORDER BY id LIMIT 120;",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -200,
+          0
+        ],
+        "id": "buscar-pendentes",
+        "name": "Buscar pendentes",
+        "alwaysOutputData": true,
+        "executeOnce": true
+      },
+      {
+        "parameters": {
+          "jsCode": "const pend = $input.all().map(i => i.json).filter(r => r.id);\nif (!pend.length) return [];\nconst cats = $('Categorias').all().map(i => i.json.nome);\nconst schema = { type: 'object', properties: { resultados: { type: 'array', items: { type: 'object',\n  properties: { id: { type: 'integer' }, categoria: { type: 'string', enum: cats } }, required: ['id', 'categoria'] } } },\n  required: ['resultados'] };\nconst sys = \"Você classifica compras de cartão de crédito brasileiro em UMA categoria da lista. Use 'Outros' só se nada servir. Responda apenas JSON.\\nCategorias: \" + cats.join(', ');\nconst out = [];\nfor (let i = 0; i < pend.length; i += 6) {\n  const b = pend.slice(i, i + 6);\n  out.push({ json: { body: { model: 'categorizador', temperature: 0, max_tokens: 400,\n    messages: [{ role: 'system', content: sys }, { role: 'user', content: b.map(r => `${r.id}|${r.descricao}|${r.valor}`).join('\\n') }],\n    response_format: { type: 'json_schema', json_schema: { name: 'r', strict: true, schema } } } } });\n}\nreturn out;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ],
+        "id": "montar",
+        "name": "Montar lotes"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://llm:8080/v1/chat/completions",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.body) }}",
+          "options": {
+            "timeout": 600000
+          },
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "={{ 'Bearer ' + $env.LLM_API_KEY }}"
+              }
+            ]
+          }
+        },
+        "onError": "continueRegularOutput",
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 3000,
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          200,
+          0
+        ],
+        "id": "llm",
+        "name": "LLM categoriza"
+      },
+      {
+        "parameters": {
+          "jsCode": "const validos = new Set($('Buscar pendentes').all().map(i => i.json.id).filter(Boolean).map(Number));\nconst cats = new Set($('Categorias').all().map(i => i.json.nome));\nconst res = [];\nfor (const it of $input.all()) {\n  try {\n    const r = JSON.parse(it.json.choices[0].message.content).resultados;\n    for (const x of r) if (validos.has(Number(x.id)) && cats.has(x.categoria)) res.push({ id: Number(x.id), categoria: x.categoria });\n  } catch (e) { /* Lotes inválidos permanecem sem categoria para a próxima execução. */ }\n}\nreturn [{ json: { payload: JSON.stringify(res), total: res.length } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          400,
+          0
+        ],
+        "id": "validar",
+        "name": "Validar respostas"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE fin.transacoes t SET categoria_id = c.id, categoria_fonte = 'llm', categorizada_em = now()\nFROM jsonb_to_recordset($1::jsonb) AS r(id bigint, categoria text)\nJOIN fin.categorias c ON c.nome = r.categoria\nWHERE t.id = r.id AND t.categoria_id IS NULL;",
+          "options": {
+            "queryReplacement": "={{ $json.payload }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          600,
+          0
+        ],
+        "id": "gravar-categorias",
+        "name": "Gravar categorias",
+        "alwaysOutputData": true
+      }
+    ],
+    "connections": {
+      "Manual Trigger": {
+        "main": [
+          [
+            {
+              "node": "Aplicar regras",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Aplicar regras": {
+        "main": [
+          [
+            {
+              "node": "Categorias",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Categorias": {
+        "main": [
+          [
+            {
+              "node": "Buscar pendentes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Buscar pendentes": {
+        "main": [
+          [
+            {
+              "node": "Montar lotes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Montar lotes": {
+        "main": [
+          [
+            {
+              "node": "LLM categoriza",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "LLM categoriza": {
+        "main": [
+          [
+            {
+              "node": "Validar respostas",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validar respostas": {
+        "main": [
+          [
+            {
+              "node": "Gravar categorias",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "active": false
+  }
+]
