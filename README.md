@@ -87,8 +87,6 @@ O cabeçalho `Authorization`, com a chave da API, é enviado ao endereço defini
 em `LLM_BASE_URL`. Ao usar um servidor na nuvem, as descrições das transações
 também são enviadas a terceiros; avalie esse risco antes de configurá-lo.
 
-**TODO:** medir memória e velocidade de execução em CPU.
-
 ## Amostras e validação
 
 O diretório [`samples/`](./samples/) contém três PDFs fictícios, com datas de
@@ -166,9 +164,11 @@ de uso, não uma funcionalidade entregue.
 - Os gatilhos de IMAP e webhook estão desativados nos fluxos de trabalho.
 - A precisão da categorização por LLM ainda não foi medida.
 - O n8n está fixado na versão `2.4.4`, a testada, para manter a execução
-  reproduzível. Essa versão tem uma falha conhecida de escape de expressões
-  (CVE-2026-25049, corrigida na `2.5.2`), explorável por quem consegue criar ou
-  editar fluxos. Por isso, o n8n escuta somente em `127.0.0.1`, os fluxos
+  reproduzível. Essa versão é antiga e é afetada por várias falhas conhecidas,
+  algumas críticas (por exemplo CVE-2026-1470 e CVE-2026-25049, de escape de
+  expressões, exploráveis por quem consegue criar ou editar fluxos). As correções
+  estão distribuídas em versões posteriores; somente a atualização para uma
+  versão atual as resolve. Por isso, o n8n escuta somente em `127.0.0.1`, os fluxos
   importados ficam inativos e o ambiente é para testes locais com dados
   sintéticos. Importe apenas fluxos em que você confia e **não exponha a porta do
   n8n**. Atualizar a versão exige repetir o teste de ponta a ponta.
@@ -182,7 +182,8 @@ de uso, não uma funcionalidade entregue.
   [`docs/RUNNING.md`](./docs/RUNNING.md)) e confira que não restam transações
   sem categoria.
 - Próximos passos: medir a qualidade da categorização com um conjunto sintético
-  rotulado e avaliar novos formatos de fatura antes de ampliar o analisador.
+  rotulado, avaliar novos formatos de fatura antes de ampliar o analisador e
+  medir a memória e a velocidade de execução do modelo em CPU.
 - Ideias em aberto (não implementadas): um modelo do Power BI (`.pbit`, sem
   dados) construído sobre as amostras sintéticas, e um assistente que consulte as
   views com a role `finance_bi`, que só tem permissão de leitura.

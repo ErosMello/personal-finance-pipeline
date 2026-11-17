@@ -239,7 +239,9 @@ docker compose -p pfp-test --env-file ../.env exec -T n8n \
 Antes de executar os fluxos, aguarde o modelo terminar de carregar. Se ele ainda
 não responder, `Finance_Categorizar` conclui sem erro, mas sem categorias do LLM.
 Repita a consulta abaixo até que responda (o resultado esperado inclui
-`"status":"ok"`); ela precisa do serviço n8n em execução:
+`"status":"ok"`); ela precisa do serviço n8n em execução. Se `wget` não existir
+na imagem, o laço repete indefinidamente: interrompa com `Ctrl+C` e use a
+alternativa pelos logs descrita abaixo:
 
 ```bash
 until docker compose -p pfp-test --env-file ../.env exec -T n8n \
