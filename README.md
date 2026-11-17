@@ -137,10 +137,25 @@ com uma amostra sintética antes de alterar o fluxo.
 Os tempos são a duração total observada nas chamadas da CLI para os fluxos de
 trabalho e incluem a inicialização do contêiner temporário.
 
-## Dashboard
+## Uso com Power BI (sugestão)
 
-Serão adicionadas capturas de um dashboard construído exclusivamente com os
-dados sintéticos deste repositório.
+As views do schema `fin` foram desenhadas para o Power BI, mas este repositório
+**não inclui** nenhum arquivo de dashboard (`.pbix`). Esta seção é uma sugestão
+de uso, não uma funcionalidade entregue.
+
+- **Conexão:** use a role `finance_bi`, que lê somente as cinco views. O banco é
+  `finance` (padrão de `POSTGRES_DB`) e a porta é a de `POSTGRES_PORT`. O
+  PostgreSQL escuta apenas em `127.0.0.1`; para conectar o Power BI Desktop de
+  outra máquina, abra um túnel SSH até o servidor.
+- **Relacionamentos (esquema em estrela):**
+  - `fato_transacoes[data]` → `dim_data[data]`;
+  - `fato_transacoes[categoria_id]` → `dim_categoria[categoria_id]`;
+  - `fato_transacoes[conta_id]` → `dim_conta[conta_id]`;
+  - `fato_faturas[conta_id]` → `dim_conta[conta_id]`.
+- **Medidas sugeridas:** gasto por mês (`SUM(valor)`; estornos têm valor
+  negativo), participação por categoria, variação em relação ao mês anterior,
+  maiores categorias e a proporção de transações categorizadas por regra, por LLM
+  ou ainda sem categoria (`categoria_fonte` e `sem_categoria`).
 
 ## Limitações e próximos passos
 
@@ -151,6 +166,9 @@ dados sintéticos deste repositório.
   somente uma chave de teste neste ambiente.
 - Próximos passos: medir a qualidade da categorização com um conjunto sintético
   rotulado e avaliar novos formatos de fatura antes de ampliar o analisador.
+- Ideias em aberto (não implementadas): um modelo do Power BI (`.pbit`, sem
+  dados) construído sobre as amostras sintéticas, e um assistente que consulte as
+  views com a role `finance_bi`, que só tem permissão de leitura.
 
 ## Habilidades demonstradas
 
@@ -169,3 +187,8 @@ dados sintéticos deste repositório.
   GGUF necessário é montado como leitura no procedimento de teste.
 - A validação ponta a ponta documentada usa somente as amostras fictícias; ela
   não representa uma validação com extratos ou faturas reais.
+
+## Licença
+
+Distribuído sob a licença MIT. Veja [`LICENSE`](./LICENSE). O modelo GGUF não faz
+parte do repositório e tem a sua própria licença, indicada na página do modelo.
