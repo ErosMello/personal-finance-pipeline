@@ -73,6 +73,13 @@ e `LLM_MODEL` define o nome do modelo (padrão `categorizador`). É possível us
 outro servidor compatível com a API da OpenAI que aceite `response_format`
 com `json_schema`; até agora, somente llama.cpp foi testado.
 
+O llama.cpp serve um único modelo e ignora o nome informado na requisição.
+Por isso, `LLM_MODEL` só tem efeito em servidores que selecionam o modelo pelo
+nome; esse comportamento não foi testado. A configuração testada foi o llama.cpp
+com os valores padrão e com uma substituição do alias, mantendo a mesma
+`LLM_BASE_URL`. Um endereço `LLM_BASE_URL` diferente ou outro servidor não foi
+testado.
+
 O cabeçalho `Authorization`, com a chave da API, é enviado ao endereço definido
 em `LLM_BASE_URL`. Ao usar um servidor na nuvem, as descrições das transações
 também são enviadas a terceiros; avalie esse risco antes de configurá-lo.
